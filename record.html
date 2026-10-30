@@ -1,1 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>記帳系統｜簡記理財</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav class="nav" aria-label="主選單">
+    <ul>
+      <li><a href="index.html">首頁</a></li>
+      <li><a href="record.html" aria-current="page">記帳系統</a></li>
+      <li><a href="budget.html">預算管理系統</a></li>
+      <li><a href="analysis.html">分析統計</a></li>
+    </ul>
+  </nav>
 
+  <header class="hero page-title">
+    <h1>記帳系統</h1>
+  </header>
+
+  <main>
+    <form id="record-form" class="form" autocomplete="off">
+      <h2>新增金額</h2>
+
+      <div class="field">
+        <label for="date">日期</label>
+        <input type="date" id="date" name="date" required>
+      </div>
+
+      <div class="field">
+        <label for="name">名稱</label>
+        <input type="text" id="name" name="name" required maxlength="50">
+      </div>
+
+      <div class="field">
+        <label for="type">類型</label>
+        <select id="type" name="type" required>
+          <option value="expense">支出</option>
+          <option value="income">收入</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="amount">金額</label>
+        <input type="number" id="amount" name="amount" required min="0.01" step="0.01" inputmode="decimal">
+      </div>
+
+      <button type="submit" class="btn">儲存</button>
+      <p id="status" class="status" role="status"></p>
+    </form>
+  </main>
+
+  <script>
+    const STORAGE_KEY = "records";
+
+    const form = document.getElementById("record-form");
+    const statusEl = document.getElementById("status");
+
+    // 今天的日期（本地時間），格式 YYYY-MM-DD
+    function todayString() {
+      const d = new Date();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return d.getFullYear() + "-" + month + "-" + day;
+    }
+
+    function loadRecords() {
+      try {
+        const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        return Array.isArray(data) ? data : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveRecords(records) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    form.date.value = todayString();
+
+    form.addEventListener("submit", function (event) {
+      event.preventDefault();
+
+      const date = form.date.value;
+      const name = form.name.value.trim();
+      const type = form.type.value;
+      const amount = Number(form.amount.value);
+
+      if (!date || !name || !(amount > 0)) {
+        statusEl.textContent = "請填寫日期與名稱，且金額需大於 0。";
+        statusEl.className = "status error";
+        return;
+      }
+
+      const records = loadRecords();
+      records.push({
+        date: date,
+        name: name,
+        type: type,
+        amount: amount,
+        createdAt: new Date().toISOString()
+      });
+
+      if (saveRecords(records)) {
+        form.reset();
+        form.date.value = todayString();
+        statusEl.textContent = "已儲存。";
+        statusEl.className = "status";
+        form.name.focus();
+      } else {
+        statusEl.textContent = "無法儲存，請確認瀏覽器允許儲存資料。";
+        statusEl.className = "status error";
+      }
+    });
+  </script>
+</body>
+</html>
