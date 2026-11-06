@@ -288,11 +288,3 @@ main {
     font-size: 0.9rem;
   }
 }
-
-@media (max-width: 479px) {
-  body {
-    width: calc(100% - 24px);
-    margin: 12px auto;
-    border-radius: 10px;
-  }
-}
