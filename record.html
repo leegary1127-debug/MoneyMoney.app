@@ -23,8 +23,8 @@
   <main>
     <p id="status" class="status" role="status">載入中…</p>
 
-    <div class="table-wrap" id="table-wrap" hidden>
-      <table class="records">
+    <div id="table-wrap" class="table-wrap" hidden>
+      <table class="records" aria-label="記帳記錄">
         <thead>
           <tr>
             <th scope="col">日期</th>
@@ -39,20 +39,20 @@
   </main>
 
   <script>
-    // 請換成你自己的 Supabase 專案資料（只能使用 anon key，不可放 service_role key）
-    const SUPABASE_URL = "https://pugvmbvzzmyrequecdzq.supabase.co";
-    const SUPABASE_ANON_KEY = "sb_publishable_QtxxUQ6FXAftG3uLoHcKhA_JP1rJoMs";
-
-    const TYPE_LABELS = { income: "收入", expense: "支出" };
+    // 請填入你的 Supabase Project URL 與 anon key（不要放 service_role key）
+    const SUPABASE_URL = "https://YOUR-PROJECT.supabase.co";
+    const SUPABASE_ANON_KEY = "YOUR-ANON-KEY";
 
     const statusEl = document.getElementById("status");
     const wrapEl = document.getElementById("table-wrap");
     const bodyEl = document.getElementById("records-body");
 
-    function showStatus(message, isError) {
+    const TYPE_LABELS = { income: "收入", expense: "支出" };
+
+    function showError(message) {
       statusEl.textContent = message;
-      statusEl.className = isError ? "status error" : "status";
-      statusEl.hidden = !message;
+      statusEl.className = "status error";
+      wrapEl.hidden = true;
     }
 
     function formatAmount(value) {
@@ -62,32 +62,38 @@
       });
     }
 
-    function renderRecords(records) {
+    function renderRows(rows) {
       bodyEl.textContent = "";
 
-      records.forEach(function (record) {
+      rows.forEach(function (row) {
         const tr = document.createElement("tr");
 
-        const cells = [
-          record.record_date,
-          record.name,
-          TYPE_LABELS[record.type] || record.type,
-          formatAmount(record.amount)
-        ];
+        const dateTd = document.createElement("td");
+        dateTd.textContent = row.record_date;
 
-        cells.forEach(function (text, index) {
-          const td = document.createElement("td");
-          td.textContent = text;
-          if (index === 3) td.className = "num";
-          tr.appendChild(td);
-        });
+        const nameTd = document.createElement("td");
+        nameTd.textContent = row.name;
 
+        const typeTd = document.createElement("td");
+        typeTd.textContent = TYPE_LABELS[row.type] || row.type;
+
+        const amountTd = document.createElement("td");
+        amountTd.className = "num";
+        amountTd.textContent = formatAmount(row.amount);
+
+        tr.append(dateTd, nameTd, typeTd, amountTd);
         bodyEl.appendChild(tr);
       });
     }
 
     async function loadRecords() {
-      const url = SUPABASE_URL + "/rest/v1/records" +
+      if (SUPABASE_URL.includes("YOUR-") || SUPABASE_ANON_KEY.includes("YOUR-")) {
+        showError("請先在 record.html 填入 Supabase 的 URL 與 anon key。");
+        return;
+      }
+
+      const url = SUPABASE_URL +
+        "/rest/v1/records" +
         "?select=record_date,name,type,amount" +
         "&order=record_date.desc,created_at.desc";
 
@@ -100,21 +106,24 @@
         });
 
         if (!response.ok) {
-          throw new Error("HTTP " + response.status);
-        }
-
-        const records = await response.json();
-
-        if (records.length === 0) {
-          showStatus("目前沒有資料。", false);
+          showError("讀取資料失敗（錯誤代碼 " + response.status + "）。");
           return;
         }
 
-        renderRecords(records);
-        showStatus("", false);
+        const rows = await response.json();
+
+        if (!Array.isArray(rows) || rows.length === 0) {
+          statusEl.textContent = "目前沒有記錄。";
+          statusEl.className = "status";
+          wrapEl.hidden = true;
+          return;
+        }
+
+        renderRows(rows);
+        statusEl.textContent = "";
         wrapEl.hidden = false;
-      } catch (error) {
-        showStatus("資料載入失敗，請確認 Supabase 設定與網路連線。", true);
+      } catch (e) {
+        showError("無法連線到資料庫，請檢查網路與設定。");
       }
     }
 
