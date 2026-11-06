@@ -21,105 +21,104 @@
   </header>
 
   <main>
-    <form id="record-form" class="form" autocomplete="off">
-      <h2>新增金額</h2>
+    <p id="status" class="status" role="status">載入中…</p>
 
-      <div class="field">
-        <label for="date">日期</label>
-        <input type="date" id="date" name="date" required>
-      </div>
-
-      <div class="field">
-        <label for="name">名稱</label>
-        <input type="text" id="name" name="name" required maxlength="50">
-      </div>
-
-      <div class="field">
-        <label for="type">類型</label>
-        <select id="type" name="type" required>
-          <option value="expense">支出</option>
-          <option value="income">收入</option>
-        </select>
-      </div>
-
-      <div class="field">
-        <label for="amount">金額</label>
-        <input type="number" id="amount" name="amount" required min="0.01" step="0.01" inputmode="decimal">
-      </div>
-
-      <button type="submit" class="btn">儲存</button>
-      <p id="status" class="status" role="status"></p>
-    </form>
+    <div class="table-wrap" id="table-wrap" hidden>
+      <table class="records">
+        <thead>
+          <tr>
+            <th scope="col">日期</th>
+            <th scope="col">名稱</th>
+            <th scope="col">類型</th>
+            <th scope="col" class="num">金額</th>
+          </tr>
+        </thead>
+        <tbody id="records-body"></tbody>
+      </table>
+    </div>
   </main>
 
   <script>
-    const STORAGE_KEY = "records";
+    // 請換成你自己的 Supabase 專案資料（只能使用 anon key，不可放 service_role key）
+    const SUPABASE_URL = "https://pugvmbvzzmyrequecdzq.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_QtxxUQ6FXAftG3uLoHcKhA_JP1rJoMs";
 
-    const form = document.getElementById("record-form");
+    const TYPE_LABELS = { income: "收入", expense: "支出" };
+
     const statusEl = document.getElementById("status");
+    const wrapEl = document.getElementById("table-wrap");
+    const bodyEl = document.getElementById("records-body");
 
-    // 今天的日期（本地時間），格式 YYYY-MM-DD
-    function todayString() {
-      const d = new Date();
-      const month = String(d.getMonth() + 1).padStart(2, "0");
-      const day = String(d.getDate()).padStart(2, "0");
-      return d.getFullYear() + "-" + month + "-" + day;
+    function showStatus(message, isError) {
+      statusEl.textContent = message;
+      statusEl.className = isError ? "status error" : "status";
+      statusEl.hidden = !message;
     }
 
-    function loadRecords() {
-      try {
-        const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
-        return Array.isArray(data) ? data : [];
-      } catch (e) {
-        return [];
-      }
-    }
-
-    function saveRecords(records) {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-        return true;
-      } catch (e) {
-        return false;
-      }
-    }
-
-    form.date.value = todayString();
-
-    form.addEventListener("submit", function (event) {
-      event.preventDefault();
-
-      const date = form.date.value;
-      const name = form.name.value.trim();
-      const type = form.type.value;
-      const amount = Number(form.amount.value);
-
-      if (!date || !name || !(amount > 0)) {
-        statusEl.textContent = "請填寫日期與名稱，且金額需大於 0。";
-        statusEl.className = "status error";
-        return;
-      }
-
-      const records = loadRecords();
-      records.push({
-        date: date,
-        name: name,
-        type: type,
-        amount: amount,
-        createdAt: new Date().toISOString()
+    function formatAmount(value) {
+      return Number(value).toLocaleString("zh-TW", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2
       });
+    }
 
-      if (saveRecords(records)) {
-        form.reset();
-        form.date.value = todayString();
-        statusEl.textContent = "已儲存。";
-        statusEl.className = "status";
-        form.name.focus();
-      } else {
-        statusEl.textContent = "無法儲存，請確認瀏覽器允許儲存資料。";
-        statusEl.className = "status error";
+    function renderRecords(records) {
+      bodyEl.textContent = "";
+
+      records.forEach(function (record) {
+        const tr = document.createElement("tr");
+
+        const cells = [
+          record.record_date,
+          record.name,
+          TYPE_LABELS[record.type] || record.type,
+          formatAmount(record.amount)
+        ];
+
+        cells.forEach(function (text, index) {
+          const td = document.createElement("td");
+          td.textContent = text;
+          if (index === 3) td.className = "num";
+          tr.appendChild(td);
+        });
+
+        bodyEl.appendChild(tr);
+      });
+    }
+
+    async function loadRecords() {
+      const url = SUPABASE_URL + "/rest/v1/records" +
+        "?select=record_date,name,type,amount" +
+        "&order=record_date.desc,created_at.desc";
+
+      try {
+        const response = await fetch(url, {
+          headers: {
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: "Bearer " + SUPABASE_ANON_KEY
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error("HTTP " + response.status);
+        }
+
+        const records = await response.json();
+
+        if (records.length === 0) {
+          showStatus("目前沒有資料。", false);
+          return;
+        }
+
+        renderRecords(records);
+        showStatus("", false);
+        wrapEl.hidden = false;
+      } catch (error) {
+        showStatus("資料載入失敗，請確認 Supabase 設定與網路連線。", true);
       }
-    });
+    }
+
+    loadRecords();
   </script>
 </body>
 </html>
