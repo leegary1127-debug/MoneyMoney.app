@@ -231,3 +231,54 @@ main {
 .status.error {
   color: #c0392b;
 }
+
+/* 記帳列表 */
+.table-wrap {
+  margin-bottom: 72px;
+  overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.records {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.records th,
+.records td {
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+
+.records th {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.records tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.records td:first-child {
+  white-space: nowrap;
+}
+
+.records .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (max-width: 479px) {
+  .records th,
+  .records td {
+    padding: 10px 8px;
+    font-size: 0.9rem;
+  }
+}
