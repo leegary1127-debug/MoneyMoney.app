@@ -24,11 +24,17 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  background: var(--bg);
 }
 
 body {
-  margin: 0;
-  background: var(--bg);
+  width: calc(100% - 48px);
+  max-width: 960px;
+  margin: 24px auto;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
   color: var(--ink);
   font-family: -apple-system, BlinkMacSystemFont, "Noto Sans TC", "PingFang TC",
     "Microsoft JhengHei", sans-serif;
@@ -117,7 +123,7 @@ main {
 }
 
 .feature {
-  background: var(--surface);
+  background: var(--bg);
   border: 1px solid var(--line);
   border-left: 4px solid var(--accent);
   border-radius: 8px;
@@ -159,7 +165,7 @@ main {
 
 /* 記帳表單 */
 .form {
-  background: var(--surface);
+  background: var(--bg);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 24px 22px;
@@ -191,7 +197,7 @@ main {
   font: inherit;
   font-size: 1rem; /* 16px 以上，避免 iOS 聚焦時自動放大 */
   color: var(--ink);
-  background: var(--bg);
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 6px;
 }
@@ -236,7 +242,7 @@ main {
 .table-wrap {
   margin-bottom: 72px;
   overflow-x: auto;
-  background: var(--surface);
+  background: var(--bg);
   border: 1px solid var(--line);
   border-radius: 8px;
 }
@@ -280,5 +286,13 @@ main {
   .records td {
     padding: 10px 8px;
     font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 479px) {
+  body {
+    width: calc(100% - 24px);
+    margin: 12px auto;
+    border-radius: 10px;
   }
 }
