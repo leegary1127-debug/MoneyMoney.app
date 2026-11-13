@@ -288,3 +288,28 @@ main {
     font-size: 0.9rem;
   }
 }
+
+/* 導覽列：登入／登出 */
+.nav .nav-auth {
+  margin-left: auto;
+}
+
+/* 次要按鈕 */
+.btn-secondary {
+  margin-top: 10px;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--accent);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+@media (max-width: 479px) {
+  .nav a {
+    padding: 14px 7px;
+    font-size: 0.9rem;
+  }
+}
