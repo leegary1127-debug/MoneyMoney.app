@@ -313,3 +313,37 @@ main {
     font-size: 0.9rem;
   }
 }
+
+/* 管理者：新增／修改表單與列表操作 */
+.form-admin {
+  margin-bottom: 24px;
+}
+
+.row-actions {
+  white-space: nowrap;
+}
+
+.row-btn {
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.row-btn + .row-btn {
+  margin-left: 6px;
+}
+
+.row-btn.danger {
+  color: #c0392b;
+  border-color: #c0392b;
+}
+
+.row-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
