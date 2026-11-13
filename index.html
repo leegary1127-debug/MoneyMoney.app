@@ -13,6 +13,7 @@
       <li><a href="record.html">記帳系統</a></li>
       <li><a href="budget.html">預算管理系統</a></li>
       <li><a href="analysis.html">分析統計</a></li>
+      <li class="nav-auth"><a href="login.html" id="auth-link">登入</a></li>
     </ul>
   </nav>
 
@@ -51,7 +52,42 @@
   </main>
 
   <script>
-    // 之後的 JavaScript 寫在這裡
+    // 請填入你的 Supabase Project URL 與 anon key（不要放 service_role key）
+    const SUPABASE_URL = "https://pugvmbvzzmyrequecdzq.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_QtxxUQ6FXAftG3uLoHcKhA_JP1rJoMs";
+    const SESSION_KEY = "sb_session";
+
+    const authLink = document.getElementById("auth-link");
+
+    function getSession() {
+      try {
+        return JSON.parse(localStorage.getItem(SESSION_KEY));
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // 已登入時，導覽列的「登入」改成「登出」
+    if (getSession()) {
+      authLink.textContent = "登出";
+      authLink.addEventListener("click", async function (event) {
+        event.preventDefault();
+        const session = getSession();
+        try {
+          await fetch(SUPABASE_URL + "/auth/v1/logout?scope=local", {
+            method: "POST",
+            headers: {
+              apikey: SUPABASE_ANON_KEY,
+              Authorization: "Bearer " + session.access_token
+            }
+          });
+        } catch (e) {}
+        try {
+          localStorage.removeItem(SESSION_KEY);
+        } catch (e) {}
+        location.href = "login.html";
+      });
+    }
   </script>
 </body>
 </html>
