@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>登入／註冊｜簡記理財</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav class="nav" aria-label="主選單">
+    <ul>
+      <li><a href="index.html">首頁</a></li>
+      <li><a href="record.html">記帳系統</a></li>
+      <li><a href="budget.html">預算管理系統</a></li>
+      <li><a href="analysis.html">分析統計</a></li>
+      <li class="nav-auth"><a href="login.html" id="auth-link" aria-current="page">登入</a></li>
+    </ul>
+  </nav>
+
+  <header class="hero page-title">
+    <h1>登入／註冊</h1>
+  </header>
+
+  <main>
+    <form id="auth-form" class="form" novalidate>
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" required autocomplete="email">
+      </div>
+
+      <div class="field">
+        <label for="password">密碼（至少 8 個字元）</label>
+        <input type="password" id="password" name="password" required minlength="8" autocomplete="current-password">
+      </div>
+
+      <button type="submit" id="login-btn" class="btn">登入</button>
+      <button type="button" id="signup-btn" class="btn btn-secondary">註冊新帳號</button>
+      <p id="status" class="status" role="status"></p>
+    </form>
+  </main>
+
+  <script>
+    // 請填入你的 Supabase Project URL 與 anon key（不要放 service_role key）
+    const SUPABASE_URL = "https://pugvmbvzzmyrequecdzq.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_QtxxUQ6FXAftG3uLoHcKhA_JP1rJoMs";
+    const SESSION_KEY = "sb_session";
+
+    const form = document.getElementById("auth-form");
+    const loginBtn = document.getElementById("login-btn");
+    const signupBtn = document.getElementById("signup-btn");
+    const statusEl = document.getElementById("status");
+
+    function getSession() {
+      try {
+        return JSON.parse(localStorage.getItem(SESSION_KEY));
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function saveSession(data) {
+      try {
+        localStorage.setItem(SESSION_KEY, JSON.stringify({
+          access_token: data.access_token,
+          refresh_token: data.refresh_token,
+          expires_at: data.expires_at
+        }));
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function setStatus(message, isError) {
+      statusEl.textContent = message;
+      statusEl.className = isError ? "status error" : "status";
+    }
+
+    function setBusy(busy) {
+      loginBtn.disabled = busy;
+      signupBtn.disabled = busy;
+    }
+
+    function errorMessage(data) {
+      switch (data && data.error_code) {
+        case "invalid_credentials":
+          return "Email 或密碼不正確。";
+        case "email_not_confirmed":
+          return "請先到信箱點擊驗證信，再登入。";
+        case "weak_password":
+          return "密碼強度不足，請使用至少 8 個字元。";
+        case "user_already_exists":
+        case "email_exists":
+          return "此 Email 無法註冊，請改用登入。";
+        case "validation_failed":
+          return "Email 格式不正確。";
+        case "signup_disabled":
+          return "目前未開放註冊。";
+        case "over_email_send_rate_limit":
+        case "over_request_rate_limit":
+          return "操作太頻繁，請稍後再試。";
+        default:
+          return "操作失敗，請稍後再試。";
+      }
+    }
+
+    async function authRequest(path, email, password) {
+      const response = await fetch(SUPABASE_URL + path, {
+        method: "POST",
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ email: email, password: password })
+      });
+      let data = {};
+      try {
+        data = await response.json();
+      } catch (e) {}
+      return { ok: response.ok, data: data };
+    }
+
+    function finishLogin(data) {
+      if (!saveSession(data)) {
+        setStatus("無法儲存登入狀態，請確認瀏覽器允許儲存資料。", true);
+        return;
+      }
+      location.replace("record.html");
+    }
+
+    async function submitAuth(path, isSignup) {
+      if (!form.reportValidity()) {
+        return;
+      }
+
+      setBusy(true);
+      setStatus("處理中…", false);
+
+      try {
+        const result = await authRequest(path, form.email.value.trim(), form.password.value);
+
+        if (!result.ok) {
+          setStatus(errorMessage(result.data), true);
+        } else if (result.data.access_token) {
+          finishLogin(result.data);
+        } else if (isSignup) {
+          setStatus("註冊成功，請到信箱點擊驗證信後，再回來登入。", false);
+        } else {
+          setStatus("操作失敗，請稍後再試。", true);
+        }
+      } catch (e) {
+        setStatus("無法連線到伺服器，請檢查網路。", true);
+      }
+
+      setBusy(false);
+    }
+
+    form.addEventListener("submit", function (event) {
+      event.preventDefault();
+      submitAuth("/auth/v1/token?grant_type=password", false);
+    });
+
+    signupBtn.addEventListener("click", function () {
+      submitAuth("/auth/v1/signup", true);
+    });
+
+    // 已登入就直接進入記帳系統
+    if (getSession()) {
+      location.replace("record.html");
+    }
+  </script>
+</body>
+</html>
