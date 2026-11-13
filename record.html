@@ -13,6 +13,7 @@
       <li><a href="record.html" aria-current="page">記帳系統</a></li>
       <li><a href="budget.html">預算管理系統</a></li>
       <li><a href="analysis.html">分析統計</a></li>
+      <li class="nav-auth"><a href="login.html" id="auth-link">登入</a></li>
     </ul>
   </nav>
 
@@ -40,15 +41,99 @@
 
   <script>
     // 請填入你的 Supabase Project URL 與 anon key（不要放 service_role key）
-   const SUPABASE_URL = "https://pugvmbvzzmyrequecdzq.supabase.co";
-   const SUPABASE_ANON_KEY = "sb_publishable_QtxxUQ6FXAftG3uLoHcKhA_JP1rJoMs";
+    const SUPABASE_URL = "https://pugvmbvzzmyrequecdzq.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_QtxxUQ6FXAftG3uLoHcKhA_JP1rJoMs";
+    const SESSION_KEY = "sb_session";
 
     const statusEl = document.getElementById("status");
     const wrapEl = document.getElementById("table-wrap");
     const bodyEl = document.getElementById("records-body");
+    const authLink = document.getElementById("auth-link");
 
     const TYPE_LABELS = { income: "收入", expense: "支出" };
 
+    // ---------- 登入狀態 ----------
+    function getSession() {
+      try {
+        return JSON.parse(localStorage.getItem(SESSION_KEY));
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function saveSession(data) {
+      try {
+        localStorage.setItem(SESSION_KEY, JSON.stringify({
+          access_token: data.access_token,
+          refresh_token: data.refresh_token,
+          expires_at: data.expires_at
+        }));
+      } catch (e) {}
+    }
+
+    function clearSession() {
+      try {
+        localStorage.removeItem(SESSION_KEY);
+      } catch (e) {}
+    }
+
+    function goLogin() {
+      clearSession();
+      location.replace("login.html");
+    }
+
+    async function refreshSession(session) {
+      try {
+        const response = await fetch(SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token", {
+          method: "POST",
+          headers: {
+            apikey: SUPABASE_ANON_KEY,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ refresh_token: session.refresh_token })
+        });
+        if (!response.ok) {
+          return null;
+        }
+        saveSession(await response.json());
+        return getSession();
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // 取得有效的登入資訊；快過期時自動更新
+    async function getValidSession() {
+      let session = getSession();
+      if (!session) {
+        return null;
+      }
+      if (session.expires_at && session.expires_at * 1000 - Date.now() < 60000) {
+        session = await refreshSession(session);
+      }
+      return session;
+    }
+
+    // ---------- 登出 ----------
+    if (getSession()) {
+      authLink.textContent = "登出";
+      authLink.addEventListener("click", async function (event) {
+        event.preventDefault();
+        const session = getSession();
+        try {
+          await fetch(SUPABASE_URL + "/auth/v1/logout?scope=local", {
+            method: "POST",
+            headers: {
+              apikey: SUPABASE_ANON_KEY,
+              Authorization: "Bearer " + session.access_token
+            }
+          });
+        } catch (e) {}
+        goLogin();
+      });
+    }
+
+    // ---------- 顯示資料 ----------
     function showError(message) {
       statusEl.textContent = message;
       statusEl.className = "status error";
@@ -87,11 +172,13 @@
     }
 
     async function loadRecords() {
-      if (SUPABASE_URL.includes("YOUR-") || SUPABASE_ANON_KEY.includes("YOUR-")) {
-        showError("請先在 record.html 填入 Supabase 的 URL 與 anon key。");
+      const session = await getValidSession();
+      if (!session) {
+        goLogin();
         return;
       }
 
+      // 資料庫的 RLS 規則會確保只回傳目前登入者自己的記錄
       const url = SUPABASE_URL +
         "/rest/v1/records" +
         "?select=record_date,name,type,amount" +
@@ -100,9 +187,15 @@
       try {
         const response = await fetch(url, {
           headers: {
-            apikey: SUPABASE_ANON_KEY
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: "Bearer " + session.access_token
           }
         });
+
+        if (response.status === 401) {
+          goLogin();
+          return;
+        }
 
         if (!response.ok) {
           showError("讀取資料失敗（錯誤代碼 " + response.status + "）。");
