@@ -1,225 +1,315 @@
-<!DOCTYPE html>
-<html lang="zh-Hant">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>記帳系統｜簡記理財</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <nav class="nav" aria-label="主選單">
-    <ul>
-      <li><a href="index.html">首頁</a></li>
-      <li><a href="record.html" aria-current="page">記帳系統</a></li>
-      <li><a href="budget.html">預算管理系統</a></li>
-      <li><a href="analysis.html">分析統計</a></li>
-      <li class="nav-auth"><a href="login.html" id="auth-link">登入</a></li>
-    </ul>
-  </nav>
+:root {
+  --bg: #f5f8f7;
+  --surface: #ffffff;
+  --ink: #17302d;
+  --muted: #5a6f6c;
+  --line: #d9e3e0;
+  --accent: #0f766e;
+}
 
-  <header class="hero page-title">
-    <h1>記帳系統</h1>
-  </header>
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #101a19;
+    --surface: #172423;
+    --ink: #e6efed;
+    --muted: #9bb0ad;
+    --line: #2a3b39;
+    --accent: #4fd1c0;
+  }
+}
 
-  <main>
-    <p id="status" class="status" role="status">載入中…</p>
+* {
+  box-sizing: border-box;
+}
 
-    <div id="table-wrap" class="table-wrap" hidden>
-      <table class="records" aria-label="記帳記錄">
-        <thead>
-          <tr>
-            <th scope="col">日期</th>
-            <th scope="col">名稱</th>
-            <th scope="col">類型</th>
-            <th scope="col" class="num">金額</th>
-          </tr>
-        </thead>
-        <tbody id="records-body"></tbody>
-      </table>
-    </div>
-  </main>
+html {
+  -webkit-text-size-adjust: 100%;
+  background: var(--bg);
+}
 
-  <script>
-    // 請填入你的 Supabase Project URL 與 anon key（不要放 service_role key）
-    const SUPABASE_URL = "https://pugvmbvzzmyrequecdzq.supabase.co";
-    const SUPABASE_ANON_KEY = "sb_publishable_QtxxUQ6FXAftG3uLoHcKhA_JP1rJoMs";
-    const SESSION_KEY = "sb_session";
+body {
+  width: calc(100% - 48px);
+  max-width: 960px;
+  margin: 24px auto;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Noto Sans TC", "PingFang TC",
+    "Microsoft JhengHei", sans-serif;
+  line-height: 1.7;
+}
 
-    const statusEl = document.getElementById("status");
-    const wrapEl = document.getElementById("table-wrap");
-    const bodyEl = document.getElementById("records-body");
-    const authLink = document.getElementById("auth-link");
+.nav {
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+}
 
-    const TYPE_LABELS = { income: "收入", expense: "支出" };
+.nav ul {
+  list-style: none;
+  margin: 0 auto;
+  padding: 0 12px;
+  max-width: 880px;
+  display: flex;
+  gap: 4px;
+}
 
-    // ---------- 登入狀態 ----------
-    function getSession() {
-      try {
-        return JSON.parse(localStorage.getItem(SESSION_KEY));
-      } catch (e) {
-        return null;
-      }
-    }
+.nav a {
+  display: block;
+  padding: 14px 10px;
+  white-space: nowrap;
+  font-size: 0.95rem;
+  color: var(--muted);
+  text-decoration: none;
+  border-bottom: 3px solid transparent;
+}
 
-    function saveSession(data) {
-      try {
-        localStorage.setItem(SESSION_KEY, JSON.stringify({
-          access_token: data.access_token,
-          refresh_token: data.refresh_token,
-          expires_at: data.expires_at
-        }));
-      } catch (e) {}
-    }
+.nav a:hover {
+  color: var(--ink);
+}
 
-    function clearSession() {
-      try {
-        localStorage.removeItem(SESSION_KEY);
-      } catch (e) {}
-    }
+.nav a[aria-current="page"] {
+  color: var(--accent);
+  font-weight: 600;
+  border-bottom-color: var(--accent);
+}
 
-    function goLogin() {
-      clearSession();
-      location.replace("login.html");
-    }
+.nav a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
 
-    async function refreshSession(session) {
-      try {
-        const response = await fetch(SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token", {
-          method: "POST",
-          headers: {
-            apikey: SUPABASE_ANON_KEY,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ refresh_token: session.refresh_token })
-        });
-        if (!response.ok) {
-          return null;
-        }
-        saveSession(await response.json());
-        return getSession();
-      } catch (e) {
-        return null;
-      }
-    }
+.hero,
+main {
+  max-width: 880px;
+  margin: 0 auto;
+  padding-left: 24px;
+  padding-right: 24px;
+}
 
-    // 取得有效的登入資訊；快過期時自動更新
-    async function getValidSession() {
-      let session = getSession();
-      if (!session) {
-        return null;
-      }
-      if (session.expires_at && session.expires_at * 1000 - Date.now() < 60000) {
-        session = await refreshSession(session);
-      }
-      return session;
-    }
+.hero {
+  padding-top: 72px;
+  padding-bottom: 40px;
+}
 
-    // ---------- 登出 ----------
-    if (getSession()) {
-      authLink.textContent = "登出";
-      authLink.addEventListener("click", async function (event) {
-        event.preventDefault();
-        const session = getSession();
-        try {
-          await fetch(SUPABASE_URL + "/auth/v1/logout?scope=local", {
-            method: "POST",
-            headers: {
-              apikey: SUPABASE_ANON_KEY,
-              Authorization: "Bearer " + session.access_token
-            }
-          });
-        } catch (e) {}
-        goLogin();
-      });
-    }
+.page-title {
+  padding-top: 48px;
+  padding-bottom: 48px;
+}
 
-    // ---------- 顯示資料 ----------
-    function showError(message) {
-      statusEl.textContent = message;
-      statusEl.className = "status error";
-      wrapEl.hidden = true;
-    }
+.hero h1 {
+  margin: 0 0 12px;
+  font-size: clamp(2.4rem, 9vw, 3.8rem);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.2;
+}
 
-    function formatAmount(value) {
-      return Number(value).toLocaleString("zh-TW", {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2
-      });
-    }
+.tagline {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--muted);
+}
 
-    function renderRows(rows) {
-      bodyEl.textContent = "";
+.features {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 72px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
 
-      rows.forEach(function (row) {
-        const tr = document.createElement("tr");
+.feature {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+  padding: 20px 22px;
+}
 
-        const dateTd = document.createElement("td");
-        dateTd.textContent = row.record_date;
+.feature h2 {
+  margin: 0 0 4px;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
 
-        const nameTd = document.createElement("td");
-        nameTd.textContent = row.name;
+.feature p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.98rem;
+}
 
-        const typeTd = document.createElement("td");
-        typeTd.textContent = TYPE_LABELS[row.type] || row.type;
+@media (min-width: 640px) {
+  .hero {
+    padding-top: 112px;
+    padding-bottom: 56px;
+  }
 
-        const amountTd = document.createElement("td");
-        amountTd.className = "num";
-        amountTd.textContent = formatAmount(row.amount);
+  .page-title {
+    padding-top: 64px;
+    padding-bottom: 64px;
+  }
 
-        tr.append(dateTd, nameTd, typeTd, amountTd);
-        bodyEl.appendChild(tr);
-      });
-    }
+  .nav ul {
+    padding: 0 24px;
+  }
 
-    async function loadRecords() {
-      const session = await getValidSession();
-      if (!session) {
-        goLogin();
-        return;
-      }
+  .features {
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+}
 
-      // 資料庫的 RLS 規則會確保只回傳目前登入者自己的記錄
-      const url = SUPABASE_URL +
-        "/rest/v1/records" +
-        "?select=record_date,name,type,amount" +
-        "&order=record_date.desc,created_at.desc";
+/* 記帳表單 */
+.form {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 24px 22px;
+  margin-bottom: 72px;
+  max-width: 480px;
+}
 
-      try {
-        const response = await fetch(url, {
-          headers: {
-            apikey: SUPABASE_ANON_KEY,
-            Authorization: "Bearer " + session.access_token
-          }
-        });
+.form h2 {
+  margin: 0 0 20px;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
 
-        if (response.status === 401) {
-          goLogin();
-          return;
-        }
+.field {
+  margin-bottom: 18px;
+}
 
-        if (!response.ok) {
-          showError("讀取資料失敗（錯誤代碼 " + response.status + "）。");
-          return;
-        }
+.field label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
 
-        const rows = await response.json();
+.field input,
+.field select {
+  width: 100%;
+  padding: 11px 12px;
+  font: inherit;
+  font-size: 1rem; /* 16px 以上，避免 iOS 聚焦時自動放大 */
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
 
-        if (!Array.isArray(rows) || rows.length === 0) {
-          statusEl.textContent = "目前沒有記錄。";
-          statusEl.className = "status";
-          wrapEl.hidden = true;
-          return;
-        }
+.field input:focus-visible,
+.field select:focus-visible,
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
 
-        renderRows(rows);
-        statusEl.textContent = "";
-        wrapEl.hidden = false;
-      } catch (e) {
-        showError("無法連線到資料庫，請檢查網路與設定。");
-      }
-    }
+.btn {
+  width: 100%;
+  padding: 12px;
+  font: inherit;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent);
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
 
-    loadRecords();
-  </script>
-</body>
-</html>
+@media (prefers-color-scheme: dark) {
+  .btn {
+    color: #0b1514;
+  }
+}
+
+.status {
+  min-height: 1.7em;
+  margin: 12px 0 0;
+  font-size: 0.95rem;
+  color: var(--accent);
+}
+
+.status.error {
+  color: #c0392b;
+}
+
+/* 記帳列表 */
+.table-wrap {
+  margin-bottom: 72px;
+  overflow-x: auto;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.records {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.records th,
+.records td {
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+
+.records th {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.records tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.records td:first-child {
+  white-space: nowrap;
+}
+
+.records .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (max-width: 479px) {
+  .records th,
+  .records td {
+    padding: 10px 8px;
+    font-size: 0.9rem;
+  }
+}
+
+/* 導覽列：登入／登出 */
+.nav .nav-auth {
+  margin-left: auto;
+}
+
+/* 次要按鈕 */
+.btn-secondary {
+  margin-top: 10px;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--accent);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+@media (max-width: 479px) {
+  .nav a {
+    padding: 14px 7px;
+    font-size: 0.9rem;
+  }
+}
